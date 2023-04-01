@@ -1,0 +1,47 @@
+import tensorflow_hub as hub
+import pandas as pd
+import numpy as np
+
+# load the USE model
+model_url = "https://tfhub.dev/google/universal-sentence-encoder-large/5"
+model = hub.load(model_url)
+
+# create a sample dataframe with similar sentences
+df = pd.DataFrame({
+    'sentence': ['This is a sentence.', 'This is a sentnce.', 'That is a different sentence.']
+})
+
+# define a function to remove similar sentences
+def remove_similar_sentences(df, column, threshold):
+    """
+    Removes similar sentences from a Pandas DataFrame column using USE embeddings
+    """
+    # create a copy of the dataframe
+    df_copy = df.copy()
+    
+    # get the embeddings for all sentences in the column
+    embeddings = model(df_copy[column].tolist())
+    
+    # iterate over each row in the dataframe
+    for i, row in df.iterrows():
+        # skip if the row has already been removed
+        if i not in df_copy.index:
+            continue
+        # calculate the cosine similarity between the embedding of the current row and all other embeddings
+        similarities = np.inner(embeddings[i], embeddings)
+        # if the similarity is above the threshold, remove the other row
+        for j, similarity in enumerate(similarities):
+            if j == i or j not in df_copy.index:
+                continue
+            if similarity >= threshold:
+                df_copy.drop(j, inplace=True)
+    
+    # return the copy of the dataframe with similar sentences removed
+    return df_copy
+
+# call the function to remove similar sentences from the 'sentence' column
+df_deduplicated = remove_similar_sentences(df, 'sentence', 0.95)
+
+# print the original and deduplicated dataframes for comparison
+print('Original Dataframe:\n', df)
+print('Deduplicated Dataframe:\n', df_deduplicated)
