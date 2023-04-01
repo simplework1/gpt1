@@ -45,3 +45,47 @@ df_deduplicated = remove_similar_sentences(df, 'sentence', 0.95)
 # print the original and deduplicated dataframes for comparison
 print('Original Dataframe:\n', df)
 print('Deduplicated Dataframe:\n', df_deduplicated)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import requests
+from bs4 import BeautifulSoup
+
+# specify the URL of the webpage to scrape
+url = 'https://www.nytimes.com/'
+
+# send a GET request to the URL
+response = requests.get(url)
+
+# parse the HTML content using BeautifulSoup
+soup = BeautifulSoup(response.content, 'html.parser')
+
+# find all <a> tags that contain 'href' attribute and are within a <h2> tag
+article_links = [a['href'] for a in soup.find_all('h2') if a.find('a') and 'href' in a.find('a').attrs]
+
+# print the list of article links
+print(article_links)
+
