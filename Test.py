@@ -1,28 +1,24 @@
-import cv2
-import pytesseract
 
-# Set the Tesseract executable path (required on Windows)
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+import re
 
-# Load the image
-image_path = "mixed_language.png"  # Replace with your image path
-image = cv2.imread(image_path)
+# Sample string (from your image)
+text = """
+Relevancy    Relevant
 
-# Convert to grayscale
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-# Optional preprocessing
-# gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+Reason : The article talks about xyz.
+"""
 
-# Perform OCR with both languages
-custom_config = r'--oem 3 --psm 6'  # Set OCR Engine Mode and Page Segmentation Mode
-text = pytesseract.image_to_string(gray, lang='eng+hin', config=custom_config)
+# Define regex to extract 'Relevancy' and 'Reason'
+pattern = r"Relevancy\s+(.*?)\n+\s*Reason\s*:\s*(.+)"
 
-# Print the extracted text
-print("Extracted Text:")
-print(text)
-
-# Optional: Display the image
-cv2.imshow("Image", image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# Apply regex
+match = re.search(pattern, text, re.DOTALL)  # Use re.DOTALL to capture multiline content
+if match:
+    result = {
+        "Relevancy": match.group(1).strip(),
+        "Reason": match.group(2).strip()
+    }
+    print(result)
+else:
+    print("No match found!")
