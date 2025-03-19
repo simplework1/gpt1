@@ -1,50 +1,37 @@
-import requests
-from urllib.robotparser import RobotFileParser
-from urllib.parse import urljoin, urlparse
+from langchain.sql_database import SQLDatabase
+from langchain.agents import create_sql_agent
+from langchain.chat_models import ChatOpenAI
+from langchain.agents.agent_types import AgentType
+from langchain.tools.sql_database.tool import QuerySQLDataBaseTool, InfoSQLDatabaseTool
 
-def get_scrappable_urls(urls):
-    scrappable_urls = []
-    robots_cache = {}  # Cache to store parsed robots.txt for each domain
-    
-    for url in urls:
-        try:
-            # Parse the domain from the URL
-            domain = urlparse(url).netloc
-            
-            # Check if the domain's robots.txt is already in the cache
-            if domain not in robots_cache:
-                # Construct the robots.txt URL
-                robots_url = urljoin(f"https://{domain}", "/robots.txt")
-                
-                # Fetch the robots.txt file
-                response = requests.get(robots_url, timeout=5)
-                
-                if response.status_code == 200:
-                    # Parse and store the robots.txt in the cache
-                    rp = RobotFileParser()
-                    rp.parse(response.text.splitlines())
-                    robots_cache[domain] = rp
-                else:
-                    # If robots.txt doesn't exist, mark the domain as non-scrappable
-                    robots_cache[domain] = None
-            
-            # Check if the domain is scrappable using cached robots.txt
-            rp = robots_cache[domain]
-            if rp and rp.can_fetch("*", url):
-                scrappable_urls.append(url)
-        except Exception as e:
-            # If any error occurs, skip the URL
-            continue
+# Step 1: Connect to your database
+db = SQLDatabase.from_uri("sqlite:///your_database.db")
 
-    return scrappable_urls
+# Step 2: Customize table schema information
+def custom_get_table_info(self, table_names=None):
+    """Returns table schema including column descriptions."""
+    table_info = self.get_table_info_no_description(table_names)
+    # Add column descriptions manually
+    table_info += """
+    Descriptions:
+    - users (id: Unique ID, name: Full Name, email: Contact Email)
+    - orders (id: Order ID, user_id: Reference to users.id, amount: Order Amount)
+    """
+    return table_info
 
-# Example usage
-urls = [
-    "https://example.com/page1",
-    "https://example.com/page2",
-    "https://google.com",
-    "https://google.com/search",
-    "https://nonexistent-website.com"
-]
-scrappable = get_scrappable_urls(urls)
-print("Scrappable URLs:", scrappable)
+# Override the method
+SQLDatabase.get_table_info = custom_get_table_info
+
+# Step 3: Create SQL Agent
+llm = ChatOpenAI(model="gpt-4", temperature=0)
+agent = create_sql_agent(
+    llm=llm,
+    toolkit=SQLDatabaseToolkit(db=db),
+    agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    verbose=True
+)
+
+# Step 4: Run Queries
+query = "What are the total order amounts for each user?"
+response = agent.run(query)
+print(response)
