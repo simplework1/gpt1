@@ -1,37 +1,28 @@
-from langchain.sql_database import SQLDatabase
-from langchain.agents import create_sql_agent
-from langchain.chat_models import ChatOpenAI
-from langchain.agents.agent_types import AgentType
-from langchain.tools.sql_database.tool import QuerySQLDataBaseTool, InfoSQLDatabaseTool
+import pandas as pd
+from pandasai import SmartDataframe
 
-# Step 1: Connect to your database
-db = SQLDatabase.from_uri("sqlite:///your_database.db")
+# Sample DataFrame
+data = {'col1': [1, 2, 3, 4, 5],
+        'col2': ['A', 'B', 'C', 'D', 'E'],
+        'col3': [10.5, 12.3, 14.7, 11.2, 13.8]}
+df = pd.DataFrame(data)
 
-# Step 2: Customize table schema information
-def custom_get_table_info(self, table_names=None):
-    """Returns table schema including column descriptions."""
-    table_info = self.get_table_info_no_description(table_names)
-    # Add column descriptions manually
-    table_info += """
-    Descriptions:
-    - users (id: Unique ID, name: Full Name, email: Contact Email)
-    - orders (id: Order ID, user_id: Reference to users.id, amount: Order Amount)
-    """
-    return table_info
+# Custom DataFrame description
+df_description = "This DataFrame contains numerical and categorical data about various items."
 
-# Override the method
-SQLDatabase.get_table_info = custom_get_table_info
+# Custom column descriptions
+column_descriptions = {
+    "col1": "A numerical identifier for each item.",
+    "col2": "A categorical label representing the item's category.",
+    "col3": "A numerical value representing the item's measurement."
+}
 
-# Step 3: Create SQL Agent
-llm = ChatOpenAI(model="gpt-4", temperature=0)
-agent = create_sql_agent(
-    llm=llm,
-    toolkit=SQLDatabaseToolkit(db=db),
-    agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    verbose=True
-)
+# Initialize SmartDataframe with descriptions
+sdf = SmartDataframe(df, config={"df_description": df_description, "column_descriptions": column_descriptions})
 
-# Step 4: Run Queries
-query = "What are the total order amounts for each user?"
-response = agent.run(query)
-print(response)
+# Now you can use pandasai with your custom descriptions
+print(sdf.chat("What is the average of col1?"))
+
+print(sdf.chat("Describe the distribution of col3."))
+
+print(sdf.chat("What are the unique values in col2?"))
