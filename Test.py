@@ -1,8 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+from typing import List, Dict, Any
 
 # Function to query LLM for visualization
-def generate_visualization_code(query, df, llm):
+def generate_visualization_code(query: str, df: pd.DataFrame, llm) -> str:
     system_prompt = """
     You're an expert in generating Python code for visualizations using pandas and matplotlib.
     You will receive a user query and a dataframe with columns ready for visualization.
@@ -26,7 +27,19 @@ def generate_visualization_code(query, df, llm):
     return code
 
 # Main visualization function
-def visualize_from_query(df, query, llm):
+def visualize_from_query(query: str, data: List[Dict[str, Any]], llm) -> None:
+    """
+    Generates and displays a matplotlib visualization based on a user's query and provided data.
+
+    Args:
+        query (str): The user's query describing the desired visualization.
+        data (List[Dict[str, Any]]): A list of dictionaries convertible to a pandas DataFrame, each dictionary representing a row.
+        llm: The language model interface used to generate executable visualization code.
+
+    Returns:
+        None. Directly executes visualization code to display the plot.
+    """
+    df = pd.DataFrame(data)
     visualization_code = generate_visualization_code(query, df, llm)
 
     print("Generated Visualization Code:")
@@ -39,4 +52,4 @@ def visualize_from_query(df, query, llm):
         print(f"Error executing generated code: {e}")
 
 # Example Usage:
-# visualize_from_query(df, "Plot the sales trend over months with clear axes labels and a title.", llm)
+# visualize_from_query("Plot the sales trend over months with clear axes labels and a title.", data, llm)
