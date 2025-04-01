@@ -1,27 +1,42 @@
 import pandas as pd
-import sqlite3
+import matplotlib.pyplot as plt
 
-def excel_to_sqlite(excel_path, db_name="database.db"):
+# Function to query LLM for visualization
+def generate_visualization_code(query, df, llm):
+    system_prompt = """
+    You're an expert in generating Python code for visualizations using pandas and matplotlib.
+    You will receive a user query and a dataframe with columns ready for visualization.
+    Generate ONLY executable Python code to produce the required visualization, including axis labels, titles, legends, and any other necessary formatting clearly based on the provided query.
+    Assume the DataFrame is named 'df' and do not include data loading, preprocessing, or any explanations.
+    Always add plt.show() at the end.
+    Do not include any additional text outside the executable code.
     """
-    Reads an Excel file and saves each sheet as a separate table in an SQLite database.
 
-    Args:
-        excel_path (str): Path to the Excel file.
-        db_name (str): Name of the SQLite database file.
+    user_prompt = f"""
+    User Query: {query}
+
+    DataFrame columns: {list(df.columns)}
+
+    Generate the Python matplotlib visualization code:
     """
-    # Load all sheets into a dictionary of DataFrames
-    xls = pd.ExcelFile(excel_path)
-    sheets = xls.sheet_names  # Get all sheet names
-    
-    # Connect to SQLite database (creates file if not exists)
-    conn = sqlite3.connect(db_name)
 
-    for sheet in sheets:
-        df = pd.read_excel(xls, sheet_name=sheet)  # Read each sheet
-        df.to_sql(sheet, conn, if_exists="replace", index=False)  # Save as table
+    response = llm.invoke(system_prompt + user_prompt)
 
-    conn.close()  # Close the connection
-    print(f"All sheets from {excel_path} saved to {db_name}")
+    code = response.content
+    return code
 
-# Example usage
-excel_to_sqlite("my_data.xlsx", "my_database.db")
+# Main visualization function
+def visualize_from_query(df, query, llm):
+    visualization_code = generate_visualization_code(query, df, llm)
+
+    print("Generated Visualization Code:")
+    print(visualization_code)
+
+    local_vars = {'df': df, 'pd': pd, 'plt': plt}
+    try:
+        exec(visualization_code, {}, local_vars)
+    except Exception as e:
+        print(f"Error executing generated code: {e}")
+
+# Example Usage:
+# visualize_from_query(df, "Plot the sales trend over months with clear axes labels and a title.", llm)
