@@ -1,55 +1,37 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-from typing import List, Dict, Any
+from langchain_core.vectorstores import InMemoryVectorStore
+from langchain.embeddings import HuggingFaceBgeEmbeddings
+import json
 
-# Function to query LLM for visualization
-def generate_visualization_code(query: str, df: pd.DataFrame, llm) -> str:
-    system_prompt = """
-    You're an expert in generating Python code for visualizations using pandas and matplotlib.
-    You will receive a user query and a dataframe with columns ready for visualization.
-    Generate ONLY executable Python code to produce the required visualization, including axis labels, titles, legends, and any other necessary formatting clearly based on the provided query.
-    Assume the DataFrame is named 'df' and do not include data loading, preprocessing, or any explanations.
-    Always add plt.show() at the end.
-    Do not include any additional text outside the executable code.
-    """
+# Function to create vector stores from dataframes
+def create_vector_stores_from_dfs(df_dict, model_name="BAAI/bge-base-en-v1.5", device="cuda"):
+    model_kwargs = {'device': device}
+    encode_kwargs = {'normalize_embeddings': True}
 
-    user_prompt = f"""
-    User Query: {query}
+    embeddings_model = HuggingFaceBgeEmbeddings(
+        model_name=model_name,
+        model_kwargs=model_kwargs,
+        encode_kwargs=encode_kwargs
+    )
 
-    DataFrame columns: {list(df.columns)}
+    vector_store_dict = {}
 
-    Generate the Python matplotlib visualization code:
-    """
+    for df_name, df in df_dict.items():
+        texts = df.apply(lambda row: json.dumps(row.to_dict()), axis=1).tolist()
+        metadata = df.apply(lambda row: row.to_dict(), axis=1).tolist()
 
-    response = llm.invoke(system_prompt + user_prompt)
+        # Create InMemoryVectorStore from texts and dictionaries as metadata
+        vector_store = InMemoryVectorStore.from_texts(
+            texts=texts,
+            embedding=embeddings_model,
+            metadatas=metadata
+        )
 
-    code = response.content
-    return code
+        vector_store_dict[df_name] = vector_store
 
-# Main visualization function
-def visualize_from_query(query: str, data: List[Dict[str, Any]], llm) -> None:
-    """
-    Generates and displays a matplotlib visualization based on a user's query and provided data.
+    return vector_store_dict
 
-    Args:
-        query (str): The user's query describing the desired visualization.
-        data (List[Dict[str, Any]]): A list of dictionaries convertible to a pandas DataFrame, each dictionary representing a row.
-        llm: The language model interface used to generate executable visualization code.
-
-    Returns:
-        None. Directly executes visualization code to display the plot.
-    """
-    df = pd.DataFrame(data)
-    visualization_code = generate_visualization_code(query, df, llm)
-
-    print("Generated Visualization Code:")
-    print(visualization_code)
-
-    local_vars = {'df': df, 'pd': pd, 'plt': plt}
-    try:
-        exec(visualization_code, {}, local_vars)
-    except Exception as e:
-        print(f"Error executing generated code: {e}")
-
-# Example Usage:
-# visualize_from_query("Plot the sales trend over months with clear axes labels and a title.", data, llm)
+# Retrieval function from vector store using metadata
+def retrieve_from_vector_store(vector_store, query, embeddings_model, top_k=5):
+    results = vector_store.similarity_search(query, k=top_k)
+    retrieved_metadata = [result.metadata for result in results]
+    return retrieved_metadata
