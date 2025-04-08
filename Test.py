@@ -1,6 +1,14 @@
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain.embeddings import HuggingFaceBgeEmbeddings
 import json
+import pandas as pd
+
+# Helper function to convert timestamps/datetimes to strings
+def convert_datetime_to_str(row_dict):
+    for key, value in row_dict.items():
+        if isinstance(value, (pd.Timestamp, pd.datetime)):
+            row_dict[key] = value.isoformat()
+    return row_dict
 
 # Function to create vector stores from dataframes
 def create_vector_stores_from_dfs(df_dict, model_name="BAAI/bge-base-en-v1.5", device="cuda"):
@@ -16,8 +24,8 @@ def create_vector_stores_from_dfs(df_dict, model_name="BAAI/bge-base-en-v1.5", d
     vector_store_dict = {}
 
     for df_name, df in df_dict.items():
-        texts = df.apply(lambda row: json.dumps(row.to_dict()), axis=1).tolist()
-        metadata = df.apply(lambda row: row.to_dict(), axis=1).tolist()
+        metadata = df.apply(lambda row: convert_datetime_to_str(row.to_dict()), axis=1).tolist()
+        texts = [json.dumps(md) for md in metadata]
 
         # Create InMemoryVectorStore from texts and dictionaries as metadata
         vector_store = InMemoryVectorStore.from_texts(
