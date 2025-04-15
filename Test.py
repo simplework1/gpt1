@@ -1,45 +1,35 @@
-from langchain_core.vectorstores import InMemoryVectorStore
-from langchain.embeddings import HuggingFaceBgeEmbeddings
-import json
-import pandas as pd
+from rank_bm25 import BM25Okapi
+from typing import List
+import nltk
 
-# Helper function to convert timestamps/datetimes to strings
-def convert_datetime_to_str(row_dict):
-    for key, value in row_dict.items():
-        if isinstance(value, (pd.Timestamp, pd.datetime)):
-            row_dict[key] = value.isoformat()
-    return row_dict
+# Download tokenizer resources if not already downloaded
+nltk.download('punkt')
+from nltk.tokenize import word_tokenize
 
-# Function to create vector stores from dataframes
-def create_vector_stores_from_dfs(df_dict, model_name="BAAI/bge-base-en-v1.5", device="cuda"):
-    model_kwargs = {'device': device}
-    encode_kwargs = {'normalize_embeddings': True}
+def retrieve_with_bm25(texts: List[str], query: str, top_k: int = 1) -> List[str]:
+    """
+    Retrieve the most relevant text(s) using BM25.
 
-    embeddings_model = HuggingFaceBgeEmbeddings(
-        model_name=model_name,
-        model_kwargs=model_kwargs,
-        encode_kwargs=encode_kwargs
-    )
+    Parameters:
+        texts (List[str]): List of candidate documents.
+        query (str): The input query.
+        top_k (int): Number of top results to return.
 
-    vector_store_dict = {}
-
-    for df_name, df in df_dict.items():
-        metadata = df.apply(lambda row: convert_datetime_to_str(row.to_dict()), axis=1).tolist()
-        texts = [json.dumps(md) for md in metadata]
-
-        # Create InMemoryVectorStore from texts and dictionaries as metadata
-        vector_store = InMemoryVectorStore.from_texts(
-            texts=texts,
-            embedding=embeddings_model,
-            metadatas=metadata
-        )
-
-        vector_store_dict[df_name] = vector_store
-
-    return vector_store_dict
-
-# Retrieval function from vector store using metadata
-def retrieve_from_vector_store(vector_store, query, embeddings_model, top_k=5):
-    results = vector_store.similarity_search(query, k=top_k)
-    retrieved_metadata = [result.metadata for result in results]
-    return retrieved_metadata
+    Returns:
+        List[str]: Top-k most relevant texts.
+    """
+    # Tokenize the corpus
+    tokenized_corpus = [word_tokenize(doc.lower()) for doc in texts]
+    
+    # Initialize BM25
+    bm25 = BM25Okapi(tokenized_corpus)
+    
+    # Tokenize the query
+    tokenized_query = word_tokenize(query.lower())
+    
+    # Get scores
+    scores = bm25.get_scores(tokenized_query)
+    
+    # Rank and return top-k results
+    top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+    return [texts[i] for i in top_indices]
