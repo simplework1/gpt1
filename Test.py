@@ -1,35 +1,28 @@
-from rank_bm25 import BM25Okapi
-from typing import List
-import nltk
+from langchain.embeddings import HuggingFaceBgeEmbeddings
+from langchain_core.vectorstores import InMemoryVectorStore
 
-# Download tokenizer resources if not already downloaded
-nltk.download('punkt')
-from nltk.tokenize import word_tokenize
+model_name = "BAAI/bge-base-en-v1.5"
+model_kwargs = {'device': 'cuda'}
+encode_kwargs = {'normalize_embeddings': True}
 
-def retrieve_with_bm25(texts: List[str], query: str, top_k: int = 1) -> List[str]:
-    """
-    Retrieve the most relevant text(s) using BM25.
+model = HuggingFaceBgeEmbeddings(
+    model_name=model_name,
+    model_kwargs=model_kwargs,
+    encode_kwargs=encode_kwargs,
+)
 
-    Parameters:
-        texts (List[str]): List of candidate documents.
-        query (str): The input query.
-        top_k (int): Number of top results to return.
+vector_store = InMemoryVectorStore(model)
+# Assuming col_list2 is your list of texts
+_ = vector_store.add_texts(col_list2)
 
-    Returns:
-        List[str]: Top-k most relevant texts.
-    """
-    # Tokenize the corpus
-    tokenized_corpus = [word_tokenize(doc.lower()) for doc in texts]
-    
-    # Initialize BM25
-    bm25 = BM25Okapi(tokenized_corpus)
-    
-    # Tokenize the query
-    tokenized_query = word_tokenize(query.lower())
-    
-    # Get scores
-    scores = bm25.get_scores(tokenized_query)
-    
-    # Rank and return top-k results
-    top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
-    return [texts[i] for i in top_indices]
+# Use similarity_search_with_score to get scores
+results_with_scores = vector_store.similarity_search_with_score(input_, k=10)
+
+# Set your matching threshold (e.g., 0.75 for 75% similarity)
+threshold = 0.75
+
+# Filter based on score
+filtered_results = [doc for doc, score in results_with_scores if score >= threshold]
+
+# Extract page content if needed
+results = [doc.page_content for doc in filtered_results]
