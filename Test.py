@@ -12,34 +12,39 @@ def main():
     if uploaded_file is not None:
         obj = load_data(uploaded_file)
 
-        # Initialize session state variables if not already set
-        if "query" not in st.session_state:
-            st.session_state.query = ""
+        # Initialize session state
         if "submitted" not in st.session_state:
             st.session_state.submitted = False
-        if "noun_check" not in st.session_state:
-            st.session_state.noun_check = False
+        if "noun_submitted" not in st.session_state:
+            st.session_state.noun_submitted = False
 
-        # Text input
-        st.session_state.query = st.text_input("Enter your query:")
-
-        # Submit button
-        if st.button("Submit"):
-            st.session_state.submitted = True
-
-        if st.session_state.submitted and st.session_state.query:
-            if st.session_state.query.lower() == "exit":
+        if not st.session_state.submitted:
+            query = st.text_input("Enter your query:")
+            if st.button("Submit"):
+                if query:
+                    st.session_state.query = query
+                    st.session_state.submitted = True
+        else:
+            query = st.session_state.query
+            if query.lower() == "exit":
+                st.write("Session ended.")
                 st.stop()
 
-            # Noun check checkbox
-            st.session_state.noun_check = st.checkbox("Enable noun check", value=False)
+            noun_check = st.checkbox("Enable noun check", value=False, key="noun_check")
 
             if st.button("Submit Noun Check"):
-                query = st.session_state.query
-                if st.session_state.noun_check:
+                if noun_check:
                     query = get_correct_query(obj, query)
                 final_ans = obj.sql_agent(query)
                 st.write(final_ans)
+                st.session_state.noun_submitted = True
+
+            if st.session_state.noun_submitted:
+                if st.button("New Query"):
+                    # Reset state for new input
+                    st.session_state.submitted = False
+                    st.session_state.noun_submitted = False
+                    st.session_state.query = ""
 
 if __name__ == "__main__":
     main()
