@@ -1,50 +1,32 @@
 import streamlit as st
 
+# Dummy function to load the uploaded file
+def load_data(file):
+    # Replace this with actual file processing logic
+    return "File loaded successfully"
+
+# Dummy function to process a question
+def get_answer(file_obj, question):
+    # Replace this with actual logic to answer the question
+    return f"Answer to: '{question}' (based on {file_obj})"
+
 def main():
-    st.title("Excel File Upload and SQL Query")
+    st.title("File Upload and Q&A")
 
-    if st.button("Clear Cache"):
-        st.cache_data.clear()
-        st.rerun()
-
-    uploaded_file = st.file_uploader("Upload an Excel file", type=["xlsx"])
-
+    # Step 1: Upload file
+    uploaded_file = st.file_uploader("Upload a file", type=["xlsx", "csv", "txt"])
+    
     if uploaded_file is not None:
-        obj = load_data(uploaded_file)
+        # Step 2: Load the file
+        if "file_obj" not in st.session_state:
+            st.session_state.file_obj = load_data(uploaded_file)
+            st.success("File loaded!")
 
-        # Initialize session state
-        if "submitted" not in st.session_state:
-            st.session_state.submitted = False
-        if "noun_submitted" not in st.session_state:
-            st.session_state.noun_submitted = False
-
-        if not st.session_state.submitted:
-            query = st.text_input("Enter your query:")
-            if st.button("Submit"):
-                if query:
-                    st.session_state.query = query
-                    st.session_state.submitted = True
-        else:
-            query = st.session_state.query
-            if query.lower() == "exit":
-                st.write("Session ended.")
-                st.stop()
-
-            noun_check = st.checkbox("Enable noun check", value=False, key="noun_check")
-
-            if st.button("Submit Noun Check"):
-                if noun_check:
-                    query = get_correct_query(obj, query)
-                final_ans = obj.sql_agent(query)
-                st.write(final_ans)
-                st.session_state.noun_submitted = True
-
-            if st.session_state.noun_submitted:
-                if st.button("New Query"):
-                    # Reset state for new input
-                    st.session_state.submitted = False
-                    st.session_state.noun_submitted = False
-                    st.session_state.query = ""
+        # Step 3 & 4: Chat input
+        question = st.chat_input("Ask a question about the uploaded file:")
+        if question:
+            answer = get_answer(st.session_state.file_obj, question)
+            st.write(answer)
 
 if __name__ == "__main__":
     main()
