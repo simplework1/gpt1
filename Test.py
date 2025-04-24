@@ -2,31 +2,46 @@ import streamlit as st
 
 # Dummy function to load the uploaded file
 def load_data(file):
-    # Replace this with actual file processing logic
     return "File loaded successfully"
 
 # Dummy function to process a question
 def get_answer(file_obj, question):
-    # Replace this with actual logic to answer the question
     return f"Answer to: '{question}' (based on {file_obj})"
 
 def main():
     st.title("File Upload and Q&A")
 
-    # Step 1: Upload file
+    # File upload
     uploaded_file = st.file_uploader("Upload a file", type=["xlsx", "csv", "txt"])
-    
+
     if uploaded_file is not None:
-        # Step 2: Load the file
+        # Load file once
         if "file_obj" not in st.session_state:
             st.session_state.file_obj = load_data(uploaded_file)
             st.success("File loaded!")
 
-        # Step 3 & 4: Chat input
+        # Initialize chat history if not present
+        if "chat_history" not in st.session_state:
+            st.session_state.chat_history = []
+
+        # Display previous chat messages
+        for message in st.session_state.chat_history:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
+
+        # Chat input
         question = st.chat_input("Ask a question about the uploaded file:")
         if question:
+            # Store user message
+            st.session_state.chat_history.append({"role": "user", "content": question})
+            with st.chat_message("user"):
+                st.write(question)
+
+            # Generate and store answer
             answer = get_answer(st.session_state.file_obj, question)
-            st.write(answer)
+            st.session_state.chat_history.append({"role": "assistant", "content": answer})
+            with st.chat_message("assistant"):
+                st.write(answer)
 
 if __name__ == "__main__":
     main()
