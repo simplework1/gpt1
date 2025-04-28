@@ -1,47 +1,22 @@
-import streamlit as st
+unique_key_prefix = str(uuid.uuid4())
 
-# Dummy function to load the uploaded file
-def load_data(file):
-    return "File loaded successfully"
+    st.write("Select the nouns you want to use:")
 
-# Dummy function to process a question
-def get_answer(file_obj, question):
-    return f"Answer to: '{question}' (based on {file_obj})"
+    # Dynamically generate checkboxes for each noun
+    selected_names = []
+    for idx, name in enumerate(names):
+        if st.checkbox(name, key=f"{unique_key_prefix}_{idx}"):
+            selected_names.append(name)
 
-def main():
-    st.title("File Upload and Q&A")
+    # Text input for manual nouns
+    manual_input = st.text_input(
+        "Or type your own nouns manually (comma-separated):",
+        key=f"{unique_key_prefix}_manual"
+    )
 
-    # File upload
-    uploaded_file = st.file_uploader("Upload a file", type=["xlsx", "csv", "txt"])
+    # Submit button
+    submit_pressed = st.button("Submit Selected or Custom Nouns", key=f"{unique_key_prefix}_submit")
 
-    if uploaded_file is not None:
-        # Load file once
-        if "file_obj" not in st.session_state:
-            st.session_state.file_obj = load_data(uploaded_file)
-            st.success("File loaded!")
-
-        # Initialize chat history if not present
-        if "chat_history" not in st.session_state:
-            st.session_state.chat_history = []
-
-        # Display previous chat messages
-        for message in st.session_state.chat_history:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
-
-        # Chat input
-        question = st.chat_input("Ask a question about the uploaded file:")
-        if question:
-            # Store user message
-            st.session_state.chat_history.append({"role": "user", "content": question})
-            with st.chat_message("user"):
-                st.write(question)
-
-            # Generate and store answer
-            answer = get_answer(st.session_state.file_obj, question)
-            st.session_state.chat_history.append({"role": "assistant", "content": answer})
-            with st.chat_message("assistant"):
-                st.write(answer)
-
-if __name__ == "__main__":
-    main()
+    if submit_pressed:
+        if manual_input.strip():
+            # User entered manual nouns
