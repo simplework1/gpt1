@@ -1,22 +1,43 @@
-unique_key_prefix = str(uuid.uuid4())
+def main():
+    uploaded_file = st.file_uploader("Upload your file")
 
-    st.write("Select the nouns you want to use:")
+    if uploaded_file is not None:
+        if "file_obj" not in st.session_state:
+            st.session_state.file_obj = load_data(uploaded_file)
+            st.success("File loaded!")
 
-    # Dynamically generate checkboxes for each noun
-    selected_names = []
-    for idx, name in enumerate(names):
-        if st.checkbox(name, key=f"{unique_key_prefix}_{idx}"):
-            selected_names.append(name)
+        if "chat_history" not in st.session_state:
+            st.session_state.chat_history = []
 
-    # Text input for manual nouns
-    manual_input = st.text_input(
-        "Or type your own nouns manually (comma-separated):",
-        key=f"{unique_key_prefix}_manual"
-    )
+        # Display previous chat messages
+        for message in st.session_state.chat_history:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
 
-    # Submit button
-    submit_pressed = st.button("Submit Selected or Custom Nouns", key=f"{unique_key_prefix}_submit")
+        # Chat input
+        noun_check = st.checkbox("Enable Noun Check")
+        question = st.chat_input("Ask a question about the uploaded file:")
 
-    if submit_pressed:
-        if manual_input.strip():
-            # User entered manual nouns
+        if question:
+            with st.chat_message("user"):
+                st.write(question)
+
+            # Track if user has completed noun selection
+            if noun_check:
+                if "noun_selection_done" not in st.session_state or not st.session_state.noun_selection_done:
+                    resp = get_correct_query(st.session_state.file_obj, question)
+                    st.session_state.updated_question = resp  # Save the updated question
+                    st.session_state.noun_selection_done = True
+                    st.stop()  # Stop here after showing noun selection!
+
+                # If noun selection is already done, use updated question
+                question = st.session_state.updated_question
+
+            # Now safely call get_answer
+            answer = get_answer(st.session_state.file_obj, question)
+            st.session_state.chat_history.append({"role": "assistant", "content": answer})
+            with st.chat_message("assistant"):
+                st.write(answer)
+
+if __name__ == "__main__":
+    main()
