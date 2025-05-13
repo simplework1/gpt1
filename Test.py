@@ -1,43 +1,33 @@
-def main():
-    uploaded_file = st.file_uploader("Upload your file")
+import pandas as pd
 
-    if uploaded_file is not None:
-        if "file_obj" not in st.session_state:
-            st.session_state.file_obj = load_data(uploaded_file)
-            st.success("File loaded!")
+def split_excel_sheet_to_tables(file_path, sheet_name=0, threshold=2):
+    """
+    Reads an Excel sheet and splits it into multiple tables based on blank rows.
+    
+    :param file_path: Path to the Excel file
+    :param sheet_name: Sheet name or index to read from
+    :param threshold: Max number of non-NaN cells in a row to consider it a separator
+    :return: List of DataFrames, each representing a separate table
+    """
+    df = pd.read_excel(file_path, sheet_name=sheet_name, header=None)
+    
+    # Find blank or near-blank rows
+    blank_rows = df.apply(lambda row: row.count() <= threshold, axis=1)
 
-        if "chat_history" not in st.session_state:
-            st.session_state.chat_history = []
+    # Split indexes
+    table_indices = []
+    start_idx = None
 
-        # Display previous chat messages
-        for message in st.session_state.chat_history:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
+    for i, is_blank in enumerate(blank_rows):
+        if not is_blank and start_idx is None:
+            start_idx = i
+        elif is_blank and start_idx is not None:
+            table_indices.append((start_idx, i))
+            start_idx = None
+    if start_idx is not None:  # Handle last table
+        table_indices.append((start_idx, len(df)))
 
-        # Chat input
-        noun_check = st.checkbox("Enable Noun Check")
-        question = st.chat_input("Ask a question about the uploaded file:")
-
-        if question:
-            with st.chat_message("user"):
-                st.write(question)
-
-            # Track if user has completed noun selection
-            if noun_check:
-                if "noun_selection_done" not in st.session_state or not st.session_state.noun_selection_done:
-                    resp = get_correct_query(st.session_state.file_obj, question)
-                    st.session_state.updated_question = resp  # Save the updated question
-                    st.session_state.noun_selection_done = True
-                    st.stop()  # Stop here after showing noun selection!
-
-                # If noun selection is already done, use updated question
-                question = st.session_state.updated_question
-
-            # Now safely call get_answer
-            answer = get_answer(st.session_state.file_obj, question)
-            st.session_state.chat_history.append({"role": "assistant", "content": answer})
-            with st.chat_message("assistant"):
-                st.write(answer)
-
-if __name__ == "__main__":
-    main()
+    # Extract DataFrames
+    tables = [df.iloc[start:end].reset_index(drop=True) for start, end in table_indices]
+    
+    return tables
