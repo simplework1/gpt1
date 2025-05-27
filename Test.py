@@ -1,33 +1,48 @@
-import pandas as pd
+prompt = """
+You are given an HTML table that may have:
+- Nested column headers (<thead> with multiple <tr> levels using rowspan and colspan)
+- Row headers on the left (e.g., in the first <td>/<th> cells of <tbody> rows)
+- A bivariate structure, where both row and column headers define the meaning of a data cell
 
-def split_excel_sheet_to_tables(file_path, sheet_name=0, threshold=2):
-    """
-    Reads an Excel sheet and splits it into multiple tables based on blank rows.
-    
-    :param file_path: Path to the Excel file
-    :param sheet_name: Sheet name or index to read from
-    :param threshold: Max number of non-NaN cells in a row to consider it a separator
-    :return: List of DataFrames, each representing a separate table
-    """
-    df = pd.read_excel(file_path, sheet_name=sheet_name, header=None)
-    
-    # Find blank or near-blank rows
-    blank_rows = df.apply(lambda row: row.count() <= threshold, axis=1)
+Your task is to:
 
-    # Split indexes
-    table_indices = []
-    start_idx = None
+1. Parse the entire HTML table, including nested <thead> and <tbody> or <tfoot>.
+2. Flatten and combine column headers into a single label using a separator like " - " (e.g., "Revenue - FY24").
+3. Flatten and combine row headers the same way, if present.
+4. Based on the structure:
+   - If the table is univariate (only column headers), return an array of row objects.
+   - If the table is bivariate (row and column headers), return a nested JSON object, where row headers form keys at one level, and column headers form keys at the next.
 
-    for i, is_blank in enumerate(blank_rows):
-        if not is_blank and start_idx is None:
-            start_idx = i
-        elif is_blank and start_idx is not None:
-            table_indices.append((start_idx, i))
-            start_idx = None
-    if start_idx is not None:  # Handle last table
-        table_indices.append((start_idx, len(df)))
+Output Requirements:
+- Output valid JSON only.
+- Use appropriate numeric or string values as per table content.
+- Do not include HTML, markdown, or explanations—only the JSON.
 
-    # Extract DataFrames
-    tables = [df.iloc[start:end].reset_index(drop=True) for start, end in table_indices]
-    
-    return tables
+Input HTML:
+(Insert HTML table here)
+
+Output Format Examples:
+
+For univariate table:
+
+[
+  {
+    "Procedure": "Cataract",
+    "Revenue - FY23": 30.97,
+    "Revenue - FY24": 53.31
+  }
+]
+
+For bivariate table:
+
+{
+  "Cataract": {
+    "Revenue - FY23": 30.97,
+    "Revenue - FY24": 53.31
+  },
+  "Lasik": {
+    "Revenue - FY23": 10.12,
+    "Revenue - FY24": 15.50
+  }
+}
+"""
