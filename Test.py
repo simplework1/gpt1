@@ -1,48 +1,51 @@
 prompt = """
-You are given an HTML table that may have:
-- Nested column headers (<thead> with multiple <tr> levels using rowspan and colspan)
-- Row headers on the left (e.g., in the first <td>/<th> cells of <tbody> rows)
-- A bivariate structure, where both row and column headers define the meaning of a data cell
+You are given the first few rows of a pandas DataFrame where the header is multi-level (nested) across multiple rows. Your task is to:
 
-Your task is to:
+1. Determine the correct header rows (usually the first 2 or 3 rows).
+2. Combine the nested headers into univariate column names by concatenating them with an underscore `_`, or a space if more readable.
+3. Replace missing or empty header cells with the most recent non-empty cell to their left in the same row.
+4. Handle cases where a parent header spans multiple child headers. In such cases, propagate the parent label across all its spanned columns so that each child column gets a full combined name (e.g., if "FY22" spans 3 columns below it labeled "Sales", "Profit", "Expenses", then the final column names should be "FY22_Sales", "FY22_Profit", "FY22_Expenses").
+5. Output the final flattened list of column names as they would appear in a cleaned DataFrame.
 
-1. Parse the entire HTML table, including nested <thead> and <tbody> or <tfoot>.
-2. Flatten and combine column headers into a single label using a separator like " - " (e.g., "Revenue - FY24").
-3. Flatten and combine row headers the same way, if present.
-4. Based on the structure:
-   - If the table is univariate (only column headers), return an array of row objects.
-   - If the table is bivariate (row and column headers), return a nested JSON object, where row headers form keys at one level, and column headers form keys at the next.
+Example 1:
+Input rows:
+|        | 0      | 1        | 2      |
+|--------|--------|----------|--------|
+| 0      | Year 1 | Year 1   | Year 2 |
+| 1      | Sales  | Profit   | Sales  |
 
-Output Requirements:
-- Output valid JSON only.
-- Use appropriate numeric or string values as per table content.
-- Do not include HTML, markdown, or explanations—only the JSON.
+Expected Output Column Names:
+['Year 1_Sales', 'Year 1_Profit', 'Year 2_Sales']
 
-Input HTML:
-(Insert HTML table here)
+Example 2:
+Input rows:
+|        | 0      | 1         | 2         | 3         |
+|--------|--------|-----------|-----------|-----------|
+| 0      | FY20   | FY20      | FY21      | FY21      |
+| 1      | Sales  | Expenses  | Sales     | Profit    |
 
-Output Format Examples:
+Expected Output Column Names:
+['FY20_Sales', 'FY20_Expenses', 'FY21_Sales', 'FY21_Profit']
 
-For univariate table:
+Example 3 (Parent spans multiple children):
+Input rows:
+|        | 0      | 1         | 2         | 3         | 4         |
+|--------|--------|-----------|-----------|-----------|-----------|
+| 0      | FY22   |           |           | FY23      |           |
+| 1      | Sales  | Profit    | Expenses  | Sales     | Profit    |
 
-[
-  {
-    "Procedure": "Cataract",
-    "Revenue - FY23": 30.97,
-    "Revenue - FY24": 53.31
-  }
-]
+Note: FY22 spans three columns: Sales, Profit, Expenses. FY23 spans two columns: Sales, Profit.
 
-For bivariate table:
+Expected Output Column Names:
+['FY22_Sales', 'FY22_Profit', 'FY22_Expenses', 'FY23_Sales', 'FY23_Profit']
 
-{
-  "Cataract": {
-    "Revenue - FY23": 30.97,
-    "Revenue - FY24": 53.31
-  },
-  "Lasik": {
-    "Revenue - FY23": 10.12,
-    "Revenue - FY24": 15.50
-  }
-}
+Now, here is a sample from a real DataFrame:
+
+|        | 0         | 1             | 2         | 3         | ... |
+|--------|------------|--------------|-----------|-----------|-----|
+| 0      | FY20       | FY20         | FY20      | FY20      | ... |
+| 1      | Sum of     | Sum of       | Sum of    | Sum of    | ... |
+| 2      | Bill Amt   | P. Adv       | P. Bal    | Dis Amt   | ... |
+
+Apply the same logic and generate a clean list of final column names.
 """
