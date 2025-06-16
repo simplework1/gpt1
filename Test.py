@@ -1,22 +1,16 @@
 import pandas as pd
 
-# Load the Excel file
-file_path = 'your_file.xlsx'  # Change this to your Excel file path
-df = pd.read_excel(file_path, header=None)
+# Define number of header rows at the top
+num_header_rows = 3
 
-# Extract row and column headers
-row_headers = df.iloc[1:, 0].tolist()       # All rows from second row, first column
-col_headers = df.iloc[0, 1:].tolist()       # First row, all columns from second column
+# Extract header rows
+header_rows = [tdf.iloc[i] for i in range(num_header_rows)]
 
-# Initialize the nested dictionary
-my_dict = {}
+# Create a DataFrame of headers and fill NaNs forward
+header_df = pd.DataFrame(header_rows).T.fillna(method='ffill', axis=0)
 
-# Iterate through rows and columns to populate the dictionary
-for i, row_header in enumerate(row_headers):
-    my_dict[row_header] = {}
-    for j, col_header in enumerate(col_headers):
-        value = df.iat[i + 1, j + 1]  # +1 to skip headers
-        my_dict[row_header][col_header] = value
+# Combine headers with '_'
+nested_headers = header_df.apply(lambda x: '_'.join(map(str, x)), axis=1).tolist()
 
-# Optional: print the dictionary
-# import pprint; pprint.pprint(my_dict)
+# Output is a list of combined column names
+print(nested_headers)
