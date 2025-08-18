@@ -1,83 +1,46 @@
-import os
-import pickle
-import numpy as np
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
-import torch
+import openpyxl
 
-class Document:
-    def __init__(self, page_content, metadata={}):
-        self.page_content = page_content
-        self.metadata = metadata
+def fill_excel_template(file_path, value_dict, output_path):
+    # Load workbook and active sheet
+    wb = openpyxl.load_workbook(file_path)
+    ws = wb.active
 
-class InMemoryVectorStore:
-    def __init__(self, documents, folder_path, model_name='BAAI/bge-en-icl'):
-        """
-        documents: list of Document objects (with page_content, metadata)
-        """
-        self.folder_path = folder_path
-        self.embedding_file = os.path.join(self.folder_path, "embeddings.pkl")
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        print(f"Using device: {self.device}")
+    # Normalize headers (case-insensitive)
+    def normalize(s):
+        return str(s).strip().lower() if s else ""
 
-        # Ensure folder exists
-        os.makedirs(folder_path, exist_ok=True)
+    # Find row headers (first column with text values like Cataract, Refractive...)
+    row_headers = {}
+    col_headers = {}
 
-        if os.path.isfile(self.embedding_file):
-            print("Loading embeddings from pickle...")
-            with open(self.embedding_file, 'rb') as f:
-                data = pickle.load(f)
-                self.embeddings = data['embeddings']
-                self.page_contents = data['page_contents']
-                self.metadata = data['metadata']
-        else:
-            print("Computing and saving new embeddings...")
-            self.page_contents = [doc.page_content for doc in documents]
-            self.metadata = [doc.metadata for doc in documents]
-            self.model = SentenceTransformer(model_name, device=self.device)
-            self.embeddings = self.model.encode(
-                self.page_contents, convert_to_numpy=True, device=self.device, show_progress_bar=True
-            )
-            with open(self.embedding_file, 'wb') as f:
-                pickle.dump({
-                    'embeddings': self.embeddings,
-                    'page_contents': self.page_contents,
-                    'metadata': self.metadata
-                }, f)
-            del self.model  # Free up memory
+    # Build mapping of row headers
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
+        cell = row[0]  # first column is row header
+        if cell.value:
+            row_headers[normalize(cell.value)] = cell.row
 
-        # Load model for retrieval
-        self.model = SentenceTransformer(model_name, device=self.device)
+    # Build mapping of column headers
+    for col in ws.iter_cols(min_col=2, max_col=ws.max_column):  
+        cell = col[0]  # first row is column header
+        if cell.value:
+            col_headers[normalize(cell.value)] = cell.column
 
-    def retrieve(self, query, top_k=5):
-        query_emb = self.model.encode(
-            [query], convert_to_numpy=True, device=self.device
-        )
-        similarities = cosine_similarity(query_emb, self.embeddings)[0]
-        top_indices = np.argsort(similarities)[::-1][:top_k]
-        results = []
-        for i in top_indices:
-            results.append({
-                "page_content": self.page_contents[i],
-                "metadata": self.metadata[i],
-                "similarity": similarities[i]
-            })
-        return results
+    # Fill values from dict
+    for company, kpis in value_dict.items():
+        company_key = normalize(company)
+        if company_key not in col_headers:
+            continue
 
-# Example usage
-if __name__ == "__main__":
-    docs = [
-        Document("The quick brown fox jumps over the lazy dog.", {"page": 1}),
-        Document("A fast, dark-colored fox leaps across a sleeping canine.", {"page": 2}),
-        Document("Artificial intelligence is transforming technology.", {"topic": "AI"}),
-        Document("Natural language processing is a fascinating field.", {"category": "NLP"}),
-        Document("Dogs are commonly domesticated pets.", {"animal": "Dog"}),
-        Document("Foxes are wild animals.", {"animal": "Fox"}),
-        Document("Machine learning is a subset of AI.", {"topic": "AI"}),
-    ]
-    embedding_folder = "./embedding_cache"
-    store = InMemoryVectorStore(docs, embedding_folder, model_name="BAAI/bge-en-icl")
-    query = "Tell me about artificial intelligence."
-    results = store.retrieve(query)
-    for r in results:
-        print(f"{r['similarity']:.4f}: {r['page_content']} | Meta {r['metadata']}")
+        col_idx = col_headers[company_key]
+
+        for kpi, value in kpis.items():
+            kpi_key = normalize(kpi)
+            if kpi_key not in row_headers:
+                continue
+
+            row_idx = row_headers[kpi_key]
+            ws.cell(row=row_idx, column=col_idx, value=value)
+
+    # Save to output path
+    wb.save(output_path)
+    print(f"Template filled and saved to {output_path}")
