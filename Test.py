@@ -1,1 +1,38 @@
-"search_param": "&tbs=cdr:1,cd_min:05/01/2025,cd_max:08/18/2025"
+import pandas as pd
+from goose3 import Goose
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
+
+def fetch_content(url, retries=2):
+    """Fetch article content from a URL using Goose with retries."""
+    g = Goose()
+    for attempt in range(retries + 1):
+        try:
+            article = g.extract(url=url)
+            if article.cleaned_text:
+                return article.cleaned_text
+        except Exception as e:
+            if attempt < retries:
+                time.sleep(1)  # wait before retrying
+            else:
+                return None
+    return None
+
+def add_content_column(df, url_column="link", max_workers=30, retries=2):
+    """Takes a dataframe, extracts content from URLs, and adds a 'content' column."""
+    results = {}
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_url = {
+            executor.submit(fetch_content, row[url_column], retries): idx
+            for idx, row in df.iterrows()
+        }
+        for future in as_completed(future_to_url):
+            idx = future_to_url[future]
+            try:
+                results[idx] = future.result()
+            except Exception:
+                results[idx] = None
+
+    df["content"] = df.index.map(results.get)
+    return df
