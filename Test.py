@@ -1,14 +1,17 @@
+from openpyxl import load_workbook
 import pandas as pd
 
-# assume your DataFrame is called df
+# Load workbook
+wb = load_workbook("your_file.xlsx")
+ws = wb.active
 
-# Find index of row where 'sum' appears as substring in the first column (ignore case)
-idx = df[df.iloc[:, 0].astype(str).str.contains('sum', case=False, na=False)].index
+rows = []
+for row in ws.iter_rows(values_only=False):  # keep formatting
+    cell_value = row[1].value  # column B in your screenshot
+    if cell_value is not None:
+        indent = row[1].alignment.indent  # detect Excel indent level
+        text = (" " * indent * 4) + str(cell_value)  # add 4 spaces per indent
+        rows.append([text])
 
-if not idx.empty:
-    cutoff = idx[0]   # first occurrence
-    df_trimmed = df.loc[:cutoff]   # keep everything including that row
-else:
-    df_trimmed = df.copy()  # if no match, keep entire df
-
-print(df_trimmed)
+df = pd.DataFrame(rows, columns=["Revenue profile"])
+print(df)
