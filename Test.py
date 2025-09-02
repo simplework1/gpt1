@@ -1,17 +1,26 @@
-from openpyxl import load_workbook
-import pandas as pd
+def custom_sort(strings, sub1, sub2):
+    def sort_key(s):
+        # Count how many of the substrings are present
+        matches = int(sub1 in s) + int(sub2 in s)
+        # Priority: more matches come first (-matches for descending order)
+        # Then by length, then alphabetically
+        return (-matches, len(s), s)
+    
+    return sorted(strings, key=sort_key)
 
-# Load workbook
-wb = load_workbook("your_file.xlsx")
-ws = wb.active
 
-rows = []
-for row in ws.iter_rows(values_only=False):  # keep formatting
-    cell_value = row[1].value  # column B in your screenshot
-    if cell_value is not None:
-        indent = row[1].alignment.indent  # detect Excel indent level
-        text = (" " * indent * 4) + str(cell_value)  # add 4 spaces per indent
-        rows.append([text])
+# Example usage
+strings = [
+    "apple banana",
+    "apple pie",
+    "banana split",
+    "cherry tart",
+    "apple banana smoothie",
+    "grape"
+]
 
-df = pd.DataFrame(rows, columns=["Revenue profile"])
-print(df)
+sub1 = "apple"
+sub2 = "banana"
+
+result = custom_sort(strings, sub1, sub2)
+print(result)
