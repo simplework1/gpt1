@@ -6,7 +6,7 @@ file_path = "your_file.xlsx"
 
 # Load workbook with openpyxl
 wb = load_workbook(file_path)
-ws = wb.active  # Use first sheet, change if needed
+ws = wb["Other expense"]  # Select the specific sheet
 
 categories = []
 
@@ -24,13 +24,13 @@ for row in ws.iter_rows(min_row=1, max_col=1):
     else:
         categories.append(None)
 
-# Load Excel into pandas
-df = pd.read_excel(file_path)
+# Load Excel into pandas (specific sheet)
+df = pd.read_excel(file_path, sheet_name="Other expense")
 
 # Replace first column with modified categories
 df.iloc[:, 0] = categories
 
 # Save formatted output
-df.to_excel("formatted_output.xlsx", index=False)
+df.to_excel("formatted_output.xlsx", index=False, sheet_name="Other expense")
 
 print("✅ Done! Check 'formatted_output.xlsx'")
