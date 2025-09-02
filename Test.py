@@ -12,28 +12,24 @@ ws = wb[sheet_name]
 # Load data into pandas
 df = pd.read_excel(file_path, sheet_name=sheet_name, engine="openpyxl")
 
-# Create a new list for first column
-categories = []
+# Number of columns to apply formatting (first 3)
+num_cols = 3  
+
+# Create a copy for modifications
+df_mod = df.copy()
 
 for i in range(len(df)):
-    excel_row = i + 2  # pandas skips the first row, Excel is 1-based (adjust this if needed!)
-    cell_value = df.iloc[i, 0]
-
-    if pd.isna(cell_value):  # Skip empty labels
-        categories.append(cell_value)
-        continue
-
+    # Excel rows are 1-based, pandas rows are 0-based
+    excel_row = i + 2   # adjust if header rows exist in your file
     outline_level = ws.row_dimensions[excel_row].outlineLevel
 
     if outline_level > 0:
-        categories.append("-" * outline_level + " " + str(cell_value))
-    else:
-        categories.append(str(cell_value))
-
-# Replace the first column with modified categories
-df.iloc[:, 0] = categories
+        for col in range(num_cols):
+            val = df.iloc[i, col]
+            if pd.notna(val):
+                df_mod.iloc[i, col] = "-" * outline_level + " " + str(val).lstrip()
 
 # Save back to Excel
-df.to_excel(output_path, index=False)
+df_mod.to_excel(output_path, index=False)
 
 print(f"✅ Done! Updated sheet saved as: {output_path}")
