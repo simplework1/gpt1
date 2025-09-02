@@ -1,32 +1,36 @@
-
 import pandas as pd
+from openpyxl import load_workbook
 
-def excel_to_dict(excel_path: str, sheet_name: str = None) -> dict:
-    """
-    Reads an Excel file and converts it into a dictionary where:
-      - Keys are column headers
-      - Values are lists of non-null values from that column
-    Skips unnamed or fully NaN columns.
+# Path to your Excel file
+file_path = "your_file.xlsx"
 
-    Parameters:
-        excel_path (str): Path to the Excel file.
-        sheet_name (str, optional): Sheet name to read. 
-                                    If None, the first sheet is used.
-    """
-    # If sheet_name is None, pandas will take the first sheet
-    df = pd.read_excel(excel_path, sheet_name=sheet_name)
+# Load workbook with openpyxl
+wb = load_workbook(file_path)
+ws = wb.active  # Use first sheet, change if needed
 
-    result = {}
-    for col in df.columns:
-        # Ignore unnamed or fully empty columns
-        if str(col).startswith("Unnamed") or df[col].dropna().empty:
-            continue
-        result[col] = df[col].dropna().tolist()
+categories = []
 
-    return result
+# Loop through rows of first column
+for row in ws.iter_rows(min_row=1, max_col=1):
+    cell = row[0]
+    val = cell.value
+    
+    if val is not None:
+        outline_level = ws.row_dimensions[cell.row].outlineLevel
+        if outline_level > 0:  # Subcategory
+            categories.append("-" * outline_level + " " + str(val))
+        else:  # Main category
+            categories.append(str(val))
+    else:
+        categories.append(None)
 
+# Load Excel into pandas
+df = pd.read_excel(file_path)
 
-# Example usage:
-# my_dict = excel_to_dict("Other expenses.xlsx")  # uses first sheet
-# my_dict = excel_to_dict("Other expenses.xlsx", sheet_name="Synonyms")  # specific sheet
-# print(my_dict)
+# Replace first column with modified categories
+df.iloc[:, 0] = categories
+
+# Save formatted output
+df.to_excel("formatted_output.xlsx", index=False)
+
+print("✅ Done! Check 'formatted_output.xlsx'")
