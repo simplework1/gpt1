@@ -1,35 +1,57 @@
-import pandas as pd
 from openpyxl import load_workbook
 
 file_path = "your_file.xlsx"
 sheet_name = "Other expense"
 output_path = "formatted_output.xlsx"
 
-# Load workbook + specific sheet
-wb = load_workbook(file_path, data_only=True)
+# Load workbook and target sheet
+wb = load_workbook(file_path)
 ws = wb[sheet_name]
 
-# Load data into pandas
-df = pd.read_excel(file_path, sheet_name=sheet_name, engine="openpyxl")
+# Helper: safe conversion to float
+def to_float(val):
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
 
-# Number of columns to apply formatting (first 3)
-num_cols = 3  
+# Iterate rows
+for row in range(1, ws.max_row + 1):
+    outline_level = ws.row_dimensions[row].outlineLevel
 
-# Create a copy for modifications
-df_mod = df.copy()
+    # Process only parent rows (outline level == 0)
+    if outline_level == 0:
+        # Find child rows until next parent
+        child_row = row + 1
+        while child_row <= ws.max_row and ws.row_dimensions[child_row].outlineLevel > 0:
+            child_row += 1
 
-for i in range(len(df)):
-    # Excel rows are 1-based, pandas rows are 0-based
-    excel_row = i + 2   # adjust if header rows exist in your file
-    outline_level = ws.row_dimensions[excel_row].outlineLevel
+        # If children exist, aggregate
+        if child_row > row + 1:
+            for col in range(2, ws.max_column + 1):  # skip first col (labels)
+                parent_val = to_float(ws.cell(row=row, column=col).value)
+                child_sum = 0.0
+                has_child_number = False
 
-    if outline_level > 0:
-        for col in range(num_cols):
-            val = df.iloc[i, col]
-            if pd.notna(val):
-                df_mod.iloc[i, col] = "-" * outline_level + " " + str(val).lstrip()
+                # sum only children (no parent included)
+                for r in range(row + 1, child_row):
+                    val = to_float(ws.cell(row=r, column=col).value)
+                    if val is not None:
+                        child_sum += val
+                        has_child_number = True
 
-# Save back to Excel
-df_mod.to_excel(output_path, index=False)
+                if has_child_number:
+                    if parent_val is None:
+                        # Parent empty → replace with sum
+                        ws.cell(row=row, column=col).value = child_sum
+                    else:
+                        # Compare parent with child sum
+                        if parent_val < child_sum:
+                            ws.cell(row=row, column=col).value = child_sum
+                        else:
+                            ws.cell(row=row, column=col).value = parent_val
 
-print(f"✅ Done! Updated sheet saved as: {output_path}")
+# Save updated workbook
+wb.save(output_path)
+
+print(f"✅ Aggregation with comparison complete! Updated file saved as: {output_path}")
